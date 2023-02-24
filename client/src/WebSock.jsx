@@ -1,59 +1,60 @@
-import { useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Button from 'react-bootstrap/Button';
 import Form from 'react-bootstrap/Form';
 import ListGroup from 'react-bootstrap/ListGroup';
+import { io } from 'socket.io-client';
+const socket = io('ws://localhost:3001');
 
 const WebSock = () => {
 	const [messages, setMessages] = useState([]);
 	const [messageInputValue, setMessageInputValue] = useState('');
-	const [connected, setConnected] = useState(false);
 	const [username, setUsername] = useState('');
-	const socket = useRef();
+	const [room, setRoom] = useState('');
+	const [connected, setConnected] = useState(false);
 
 	const connect = () => {
-		socket.current = new WebSocket('ws://localhost:5000');
-		console.log('Success connection');
-
-		socket.current.onopen = () => {
-			setConnected(true);
-			const msg = {
-				event: 'connection',
-				username,
-				id: Date.now(),
-			};
-			socket.current.send(JSON.stringify(msg));
-		};
-
-		socket.current.onmessage = (event) => {
-			const msg = JSON.parse(event.data);
-			setMessages((prev) => [msg, ...prev]);
-		};
-
-		socket.current.onclose = () => {
-			setConnected(false);
-			console.log('Socket connection close');
-		};
-
-		socket.current.onerror = () => {
-			setConnected(false);
-			console.log('Socket error');
-		};
+		socket.emit('connected', {
+			event: 'connected',
+			username,
+			id: Date.now(),
+			room,
+		});
+		setConnected(true);
 	};
+
+	useEffect(() => {
+		socket.on('connected', (message) => {
+			setMessages((prev) => [message, ...prev]);
+		});
+
+		socket.on('receive_message', (message) => {
+			setMessages((prev) => [message, ...prev]);
+		});
+	}, [socket]);
 
 	const onSendMessage = async () => {
 		const msg = {
-			event: 'message',
 			username,
+			room,
 			message: messageInputValue,
 			id: Date.now(),
 		};
-		socket.current.send(JSON.stringify(msg));
+		socket.emit('send_message', msg);
 		setMessageInputValue('');
 	};
 
 	if (!connected) {
 		return (
 			<Form className='mt-5 mb-5'>
+				<Form.Group className='mb-3'>
+					<Form.Label>Enter room</Form.Label>
+					<Form.Control
+						value={room}
+						onChange={(e) => setRoom(e.target.value)}
+						type='text'
+						placeholder='Room...'
+					/>
+				</Form.Group>
 				<Form.Group className='mb-3'>
 					<Form.Label>Enter your name</Form.Label>
 					<Form.Control
@@ -91,7 +92,7 @@ const WebSock = () => {
 			<section>
 				<ListGroup>
 					{messages.map((m) =>
-						m.event === 'connection' ? (
+						m.event === 'connected' ? (
 							<ListGroup.Item
 								style={{ color: 'green', fontWeight: '700' }}
 								key={m.id}

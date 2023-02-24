@@ -1,25 +1,31 @@
-const ws = require('ws');
+const express = require('express');
+const app = express();
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
 
-const wss = new ws.Server({ port: 5000 }, () =>
-	console.log('Server started on port 5000')
-);
+app.use(cors());
 
-wss.on('connection', (ws) => {
-	ws.on('message', (msg) => {
-		message = JSON.parse(msg);
-		switch (message.event) {
-			case 'connection':
-				broadcastMessage(message);
-				break;
-			case 'message':
-				broadcastMessage(message);
-				break;
-		}
+const server = http.createServer(app);
+
+const io = new Server(server, {
+	cors: {
+		origin: 'http://127.0.0.1:5174',
+		methods: ['GET', 'POST'],
+	},
+});
+
+io.on('connection', (socket) => {
+	socket.on('connected', (data) => {
+		socket.join(data.room);
+		io.in(data.room).emit('connected', data);
+	});
+
+	socket.on('send_message', (data) => {
+		io.in(data.room).emit('receive_message', data);
 	});
 });
 
-const broadcastMessage = () => {
-	wss.clients.forEach((client) => {
-		client.send(JSON.stringify(message));
-	});
-};
+server.listen(3001, () => {
+	console.log('Server started on port 3001');
+});
