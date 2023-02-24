@@ -4,7 +4,7 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"dev": "nodemon event-source.js"
+		"dev": "nodemon websocket.js"
 	},
 	"keywords": [],
 	"author": "",
